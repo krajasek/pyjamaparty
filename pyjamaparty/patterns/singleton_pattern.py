@@ -1,23 +1,27 @@
 
 
+from threading import Lock
+
+
 def singleton(klass):
-    assert type(klass) == type(object), 'Incorrect usage of singleton decorator'
+    """
+    A thread-safe singleton decorator.
 
-    class _Singleton(object):
-        __instance = None
-        __klass = klass
+    Usage:
+    @singleton
+    class MyClass(object):
+        pass
+    """
+    instances = {}
+    lock = Lock()
 
-        def __init__(self, *args, **kwargs):
-            if self.__class__.__instance is None:
-                self.__class__.__instance = self.__class__.__klass(*args, **kwargs)
+    def get_instance(*args, **kwargs):
+        if klass not in instances:
+            with lock:
+                # Another thread could have created the instance
+                # before we acquired the lock.
+                if klass not in instances:
+                    instances[klass] = klass(*args, **kwargs)
+        return instances[klass]
 
-        def __call__(self, *args, **kwargs):
-            return self.__class__.__instance
-
-        def __getattr__(self, item):
-            return getattr(self.__class__.__instance, item)
-
-        def __setattr__(self, key, value):
-            setattr(self.__class__.__instance, key, value)
-
-    return _Singleton
+    return get_instance

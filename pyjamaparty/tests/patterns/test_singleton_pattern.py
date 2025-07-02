@@ -1,56 +1,59 @@
 import unittest
+import threading
 from pyjamaparty.patterns.singleton_pattern import singleton
 
 
 class TestSingletonPattern(unittest.TestCase):
 
-    def test_singleton_method_should_raise_error(self):
-        raised_error = False
-        try:
-            @singleton
-            def this_decoration_should_raise_error():
-                pass
-        except AssertionError as e:
-            raised_error = True
-        finally:
-            self.assertTrue(raised_error)
-
-    def test_singleton_class_definition(self):
-        raised_error = False
-        try:
-            @singleton
-            class __SingletonTest(object):
-                pass
-        except AssertionError as e:
-            raised_error = True
-        finally:
-            self.assertFalse(raised_error)
-
-    def test_singleton_decorator_as_a_method(self):
-        class __SingletonTest(object):
-            pass
-        _singleton = singleton(__SingletonTest)
-        self.assertIs(type(_singleton), type(object))
-
-    def test_singleton_usage(self):
+    def test_singleton_instance_uniqueness(self):
         @singleton
-        class __SingletonTest(object):
+        class SingletonTest(object):
             def __init__(self, data=0):
                 self.data = data
 
-            def get_data(self):
-                return self.data
+        instance_a = SingletonTest(10)
+        instance_b = SingletonTest(20)
 
-        instance_a = __SingletonTest(10)
-        self.assertTrue(type(instance_a), type(object))
-        self.assertEqual(instance_a.get_data(), 10)
-        instance_a.data = 20
-        self.assertEqual(instance_a.data, 20)
-        self.assertEqual(instance_a.get_data(), 20)
+        self.assertIs(instance_a, instance_b)
+        self.assertEqual(instance_a.data, 10)
+        self.assertEqual(instance_b.data, 10)
 
-        instance_b = __SingletonTest(101)
-        self.assertTrue(type(instance_b), type(object))
-        self.assertNotEqual(instance_b.data, 101)
-        self.assertNotEqual(instance_b.get_data(), 101)
-        self.assertEqual(instance_a.data, instance_b.data)
-        self.assertEqual(instance_a.get_data(), instance_b.get_data())
+    def test_singleton_thread_safety(self):
+        @singleton
+        class ThreadSafeSingleton(object):
+            def __init__(self):
+                # This is to simulate some work being done
+                # during initialization.
+                import time
+                time.sleep(0.1)
+
+        instances = []
+        def worker():
+            instances.append(ThreadSafeSingleton())
+
+        threads = [threading.Thread(target=worker) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        first_instance = instances[0]
+        for i in range(1, len(instances)):
+            self.assertIs(first_instance, instances[i])
+
+    def test_singleton_statefulness(self):
+        @singleton
+        class StatefulSingleton(object):
+            def __init__(self):
+                self.value = 0
+
+        s1 = StatefulSingleton()
+        self.assertEqual(s1.value, 0)
+
+        s1.value = 42
+        s2 = StatefulSingleton()
+        self.assertEqual(s2.value, 42)
+
+
+if __name__ == '__main__':
+    unittest.main()
